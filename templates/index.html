@@ -28,15 +28,15 @@
         <div class="section-title">Nouvelle Partie</div>
         <input type="text" class="input-3d mb-2" id="create-name" placeholder="VOTRE PSEUDO" maxlength="15" style="letter-spacing:2px;">
         <div class="mb-2">
-          <label class="text-muted" style="font-size:.8rem;">Score de victoire</label>
-          <select id="winning-score" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'Orbitron';font-size:.9rem;margin-top:4px;cursor:pointer;">
-            <option value="5">5 Points</option>
-            <option value="10" selected>10 Points</option>
-            <option value="15">15 Points</option>
-            <option value="20">20 Points</option>
+          <label class="text-muted" style="font-size:.8rem;">Nombre de questions</label>
+          <select id="winning-score" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'Orbitron';font-size:.9rem;margin-top:4px;cursor:pointer;width:100%;">
+            <option value="5">5 Questions</option>
+            <option value="10" selected>10 Questions</option>
+            <option value="15">15 Questions</option>
+            <option value="20">20 Questions</option>
           </select>
         </div>
-        <button class="btn-3d primary" id="btn-create" onclick="createRoom()">🚀 Créer la Salle</button>
+        <button class="btn-3d primary" id="btn-create" onclick="createRoom()" style="width:100%;">🚀 Créer la Salle</button>
         <div id="create-error" class="error-msg hidden"></div>
       </div>
 

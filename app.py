@@ -500,8 +500,7 @@ def send_new_question(room_code):
         'is_solo': room.get('is_solo', False)
     }, room=room_code)
 
-        # Démarrer le chronomètre de 10s pour le mode solo
-    if room.get('is_solo'):
+        # Démarrer le chronomètre de 10s pour tous les modes
         q_num = room['question_number']
         def timeout_check():
             if room_code in rooms:
@@ -514,18 +513,21 @@ def send_new_question(room_code):
                         'answer': r['current_question']['answer']
                     }, room=room_code)
                     
-                    if r['question_number'] >= r['winning_score']:
+                    if r['question_number'] >= r['max_questions']:
                         r['game_started'] = False
                         def delayed_game_over():
                             time.sleep(2.5)
                             rankings = get_rankings(room_code)
                             winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
+                            if not r.get('is_solo') and rankings:
+                                winner_name = rankings[0]['name']
+
                             socketio.emit('game_over', {
                                 'winner': winner_name,
                                 'rankings': rankings,
                                 'room_code': room_code,
-                                'is_solo': True,
-                                'max_questions': r['winning_score']
+                                'is_solo': r.get('is_solo', False),
+                                'max_questions': r['max_questions']
                             }, room=room_code)
                         threading.Thread(target=delayed_game_over, daemon=True).start()
                     else:
@@ -597,26 +599,26 @@ def handle_submit_answer(data):
 
         # Vérifier si on a fini
         is_over = False
-        if room.get('is_solo'):
-            if room['question_number'] >= room['winning_score']:
-                is_over = True
-        else:
-            if new_score >= room['winning_score']:
-                is_over = True
+        if room['question_number'] >= room['max_questions']:
+            is_over = True
 
         if is_over:
             room['game_started'] = False
-            print(f"[GAME OVER] {player_name} wins/finishes! Room {code}")
+            print(f"[GAME OVER] {player_name} finishes! Room {code}")
             
             def delayed_game_over():
                 time.sleep(2)
                 rankings = get_rankings(code)
+                winner_name = player_name
+                if not room.get('is_solo') and rankings:
+                    winner_name = rankings[0]['name']
+
                 socketio.emit('game_over', {
-                    'winner': player_name,
+                    'winner': winner_name,
                     'rankings': rankings,
                     'room_code': code,
                     'is_solo': room.get('is_solo', False),
-                    'max_questions': room['winning_score']
+                    'max_questions': room['max_questions']
                 }, room=code)
                 
             threading.Thread(target=delayed_game_over, daemon=True).start()
