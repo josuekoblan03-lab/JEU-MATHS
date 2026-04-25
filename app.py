@@ -259,29 +259,32 @@ def handle_disconnect():
             player_name = room['players'][sid]['name']
             
             def delayed_cleanup(room_code, player_sid, p_name):
-                time.sleep(3)
-                # Si le SID est toujours dans les joueurs après 3s, ça veut dire qu'il n'a pas été
-                # remplacé par une reconnexion (changement de page).
-                if room_code in rooms and player_sid in rooms[room_code]['players']:
-                    del rooms[room_code]['players'][player_sid]
-                    if player_sid in rooms[room_code]['player_order']:
-                        rooms[room_code]['player_order'].remove(player_sid)
-                    
-                    # Si c'était l'hôte, donner le rôle au suivant
-                    if rooms[room_code]['host'] == player_sid:
-                        rooms[room_code]['host'] = rooms[room_code]['player_order'][0] if rooms[room_code]['player_order'] else None
+                try:
+                    socketio.sleep(5)
+                    # Si le SID est toujours dans les joueurs après 5s, ça veut dire qu'il n'a pas été
+                    # remplacé par une reconnexion (changement de page).
+                    if room_code in rooms and player_sid in rooms[room_code]['players']:
+                        del rooms[room_code]['players'][player_sid]
+                        if player_sid in rooms[room_code]['player_order']:
+                            rooms[room_code]['player_order'].remove(player_sid)
+                        
+                        # Si c'était l'hôte, donner le rôle au suivant
+                        if rooms[room_code]['host'] == player_sid:
+                            rooms[room_code]['host'] = rooms[room_code]['player_order'][0] if rooms[room_code]['player_order'] else None
 
-                    socketio.emit('player_left', {
-                        'player_name': p_name,
-                        'players': get_room_players(room_code)
-                    }, room=room_code)
-                    
-                    # Supprimer la salle si vide
-                    if len(rooms[room_code]['players']) == 0:
-                        del rooms[room_code]
-                        print(f"[ROOM DELETED] {room_code} (empty)")
+                        socketio.emit('player_left', {
+                            'player_name': p_name,
+                            'players': get_room_players(room_code)
+                        }, room=room_code)
+                        
+                        # Supprimer la salle si vide
+                        if len(rooms[room_code]['players']) == 0:
+                            del rooms[room_code]
+                            print(f"[ROOM DELETED] {room_code} (empty)")
+                except Exception as e:
+                    print(f"ERROR in delayed_cleanup: {e}")
             
-            threading.Thread(target=delayed_cleanup, args=(code, sid, player_name), daemon=True).start()
+            socketio.start_background_task(delayed_cleanup, code, sid, player_name)
             break
 
 
@@ -467,9 +470,10 @@ def handle_start_game(data):
 
     socketio.emit('game_started', {'room_code': code}, room=code)
 
-    # Envoyer la première question après un court délai
+    # Envoyer la première question après un délai suffisant
+    # pour que tous les joueurs aient le temps de charger la page /game/
     def delayed_first_question():
-        socketio.sleep(1.5)
+        socketio.sleep(4)
         send_new_question(code)
     socketio.start_background_task(delayed_first_question)
 
