@@ -210,37 +210,38 @@ socket.on('correct_answer', (data) => {
   // Update scores with animation
   renderScores(data.scores, data.player_id);
 
-  // Failsafe: if we don't get a new question in 5 seconds, request it!
+  // Client-driven progression
   setTimeout(() => {
-    if (document.getElementById('card-inner').classList.contains('flipped')) {
-      console.log('[FAILSAFE] Stuck on correct_answer, requesting question...');
-      socket.emit('request_question', { room_code: ROOM_CODE });
+    if (data.is_over) {
+      socket.emit('request_game_over', { room_code: ROOM_CODE });
+    } else {
+      socket.emit('request_next_question', { room_code: ROOM_CODE });
     }
-  }, 5000);
+  }, 2500);
 });
 
+// ── Event: Time Up ──
 socket.on('time_up', (data) => {
-  if (typeof playSFX === 'function') playSFX('time_up');
-
+  if (typeof playSFX === 'function') playSFX('wrong');
+  lockInput();
+  showFeedback(data.message, 'late');
+  
+  // Show answer on card back
   document.getElementById('answer-reveal').textContent = `${data.answer} ⏳ Trop tard`;
   document.getElementById('card-inner').classList.add('flipped');
 
-  lockInput();
-  
   // Stop timer visual
   const timerBar = document.getElementById('timer-bar');
   timerBar.classList.remove('running');
-  
-  document.getElementById('answer-input').classList.add('wrong');
-  showFeedback(data.message, 'wrong');
 
-  // Failsafe: if we don't get a new question in 5 seconds, request it!
+  // Client-driven progression
   setTimeout(() => {
-    if (document.getElementById('card-inner').classList.contains('flipped')) {
-      console.log('[FAILSAFE] Stuck on time_up, requesting question...');
-      socket.emit('request_question', { room_code: ROOM_CODE });
+    if (data.is_over) {
+      socket.emit('request_game_over', { room_code: ROOM_CODE });
+    } else {
+      socket.emit('request_next_question', { room_code: ROOM_CODE });
     }
-  }, 5000);
+  }, 2500);
 });
 
 socket.on('wrong_answer', (data) => {

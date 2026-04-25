@@ -535,30 +535,15 @@ def send_new_question(room_code):
                 # Temps écoulé, personne n'a répondu
                 r['answered'] = True
                 print(f"[TIMEOUT] Question #{q_num} timed out in room {room_code}")
+                is_over = (r['question_number'] >= r['max_questions'])
+                if is_over:
+                    r['game_started'] = False
+
                 emit_to_room('time_up', {
                     'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
-                    'answer': r['current_question']['answer']
+                    'answer': r['current_question']['answer'],
+                    'is_over': is_over
                 }, room_code)
-
-                socketio.sleep(2.5)
-
-                if r['question_number'] >= r['max_questions']:
-                    # Partie terminée
-                    r['game_started'] = False
-                    rankings = get_rankings(room_code)
-                    winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
-                    if not r.get('is_solo') and rankings:
-                        winner_name = rankings[0]['name']
-                    emit_to_room('game_over', {
-                        'winner': winner_name,
-                        'rankings': rankings,
-                        'room_code': room_code,
-                        'is_solo': r.get('is_solo', False),
-                        'max_questions': r['max_questions']
-                    }, room_code)
-                else:
-                    # Question suivante
-                    send_new_question(room_code)
             except Exception as e:
                 print(f"ERROR in timeout_task: {e}")
 
@@ -567,6 +552,48 @@ def send_new_question(room_code):
     except Exception as e:
         print(f"ERROR in send_new_question: {e}")
         socketio.emit('error', {'message': f'Server error: {e}'}, room=room_code)
+@socketio.on('request_next_question')
+def handle_request_next_question(data):
+    sid = request.sid
+    code = data.get('room_code', '').strip().upper()
+    if code not in rooms:
+        return
+    room = rooms[code]
+    if not room['game_started']:
+        return
+    
+    # Only allow the host or solo player to trigger the next question to avoid race conditions
+    if room.get('is_solo') or room.get('host') == sid:
+        # Prevent multiple triggers
+        if not room['answered']:
+            return
+        
+        # If the game is really over, don't send question
+        if room['question_number'] >= room['max_questions']:
+            return
+
+        send_new_question(code)
+
+@socketio.on('request_game_over')
+def handle_request_game_over(data):
+    code = data.get('room_code', '').strip().upper()
+    if code not in rooms:
+        return
+    room = rooms[code]
+    
+    rankings = get_rankings(code)
+    winner_name = list(room['players'].values())[0]['name'] if room['players'] else "Joueur"
+    if not room.get('is_solo') and rankings:
+        winner_name = rankings[0]['name']
+
+    emit_to_room('game_over', {
+        'winner': winner_name,
+        'rankings': rankings,
+        'room_code': code,
+        'is_solo': room.get('is_solo', False),
+        'max_questions': room['max_questions']
+    }, code)
+
 @socketio.on('submit_answer')
 def handle_submit_answer(data):
     """
@@ -616,50 +643,30 @@ def handle_submit_answer(data):
 
         print(f"[CORRECT] {player_name} answered {correct_answer} (Score: {new_score}) - Room {code}")
 
-        # Notifier tout le monde
-        emit_to_room('correct_answer', {
-            'player_id': sid,
-            'player_name': player_name,
-            'answer': correct_answer,
-            'question': room['current_question']['display'],
-            'scores': get_room_players(code)
-        }, code)
-
-        # Vérifier si on a fini
-        is_over = False
-        if room['question_number'] >= room['max_questions']:
-            is_over = True
-
+        is_over = (room['question_number'] >= room['max_questions'])
         if is_over:
             room['game_started'] = False
             print(f"[GAME OVER] {player_name} finishes! Room {code}")
             
-            def delayed_game_over():
-                socketio.sleep(2.0)
-                rankings = get_rankings(code)
-                winner_name = player_name
-                if not room.get('is_solo') and rankings:
-                    winner_name = rankings[0]['name']
-
-                emit_to_room('game_over', {
-                    'winner': winner_name,
-                    'rankings': rankings,
-                    'room_code': code,
-                    'is_solo': room.get('is_solo', False),
-                    'max_questions': room['max_questions']
-                }, code)
-                
-            socketio.start_background_task(delayed_game_over)
+            # Notifier tout le monde
+            emit_to_room('correct_answer', {
+                'player_id': sid,
+                'player_name': player_name,
+                'answer': correct_answer,
+                'question': room['current_question']['display'],
+                'scores': get_room_players(code),
+                'is_over': True
+            }, code)
         else:
-            # Prochaine question après un délai
-            def delayed_next():
-                try:
-                    socketio.sleep(2.5)
-                    send_new_question(code)
-                except Exception as e:
-                    print(f"ERROR in delayed_next: {e}")
-                    socketio.emit('error', {'message': f'Server error: {e}'}, room=code)
-            socketio.start_background_task(delayed_next)
+            # Notifier tout le monde
+            emit_to_room('correct_answer', {
+                'player_id': sid,
+                'player_name': player_name,
+                'answer': correct_answer,
+                'question': room['current_question']['display'],
+                'scores': get_room_players(code),
+                'is_over': False
+            }, code)
 
     else:
         # ─── MAUVAISE RÉPONSE ───
