@@ -21,12 +21,13 @@ function showTab(tab) {
 function createRoom() {
   const name = document.getElementById('create-name').value.trim();
   const score = document.getElementById('winning-score').value;
+  const difficulty = document.getElementById('create-difficulty').value;
   if (!name) {
     showError('create-error', 'Entrez votre pseudo !');
     return;
   }
   addRipple(document.getElementById('btn-create'), event);
-  socket.emit('create_room', { player_name: name, winning_score: score });
+  socket.emit('create_room', { player_name: name, winning_score: score, difficulty: difficulty });
 }
 
 // ── Join Room ──

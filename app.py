@@ -71,131 +71,101 @@ def generate_room_code(length=6):
 
 def generate_question(used_questions, difficulty='normal'):
     """
-    Génère une question mathématique aléatoire adaptée au niveau de difficulté.
-    Retourne { 'display': str, 'answer': number }
+    Génère une question mathématique aléatoire et propre selon la difficulté.
+    Supporte les chaînes d'opérations (PEMDAS) et les divisions entières.
     """
-    max_attempts = 100
-    for _ in range(max_attempts):
-        
-        # Sélection des types d'opération et des plages de nombres selon la difficulté
+    import random
+
+    for _ in range(100): # Limite de tentatives pour éviter une boucle infinie
+        # Définition des plages de nombres
         if difficulty == 'facile':
-            q_type = random.choices(['simple_add', 'simple_sub', 'simple_mul'], weights=[5, 4, 1], k=1)[0]
+            range_add = (1, 15)
+            range_mul = (2, 5)
         elif difficulty == 'difficile':
-            q_type = random.choice([
-                'simple_mul', 'simple_div', 'double_add', 'mixed_ops', 'parentheses', 'mul_add', 'triple_ops'
+            range_add = (10, 100)
+            range_mul = (3, 15)
+        else: # normal
+            range_add = (1, 50)
+            range_mul = (2, 10)
+
+        # Liste de modèles d'expressions selon la difficulté
+        if difficulty == 'facile':
+            tpl = random.choice(["{a} + {b}", "{a} - {b}"])
+        elif difficulty == 'difficile':
+            tpl = random.choice([
+                "{a} + {b} + {c} + {d}",
+                "{a} * {b} + {c} * {d}",
+                "({a} + {b}) * ({c} - {d})",
+                "{a} * {b} - {c} + {d}",
+                "{a} + {b} * {c} - {d}",
+                "{a} * {b} * {c} + {d}",
+                "{a} + {b} + {c} + {d} + {e}",
+                "({a} + {b} + {c}) * {d}",
+                "{a} * {b} + {c} + {d} + {e}",
+                "{a} / {b} + {c} * {d}",
+                "({a} + {b}) / {c} + {d}"
             ])
         else: # normal
-            q_type = random.choices([
-                'simple_add', 'simple_sub', 'simple_mul', 'simple_div',
-                'double_add', 'mixed_ops', 'parentheses', 'mul_add'
-            ], weights=[4, 4, 3, 3, 1, 1, 1, 1], k=1)[0]
+            tpl = random.choice([
+                "{a} + {b} + {c}",
+                "{a} * {b} + {c}",
+                "{a} + {b} - {c}",
+                "({a} + {b}) * {c}",
+                "{a} * {b} - {c}",
+                "{a} / {b} + {c}",
+                "{a} + {b} * {c}",
+                "{a} + {b} + {c} + {d}"
+            ])
 
-        if q_type == 'simple_add':
-            if difficulty == 'facile':
-                a, b = random.randint(1, 10), random.randint(1, 10)
-            elif difficulty == 'difficile':
-                a, b = random.randint(15, 50), random.randint(15, 50)
-            else:
-                a, b = random.randint(1, 15), random.randint(1, 15)
-            display = f"{a} + {b}"
-            answer = a + b
+        # Remplissage des variables
+        vals = {}
+        for char in ['a', 'b', 'c', 'd', 'e']:
+            if char in tpl:
+                # Si c'est une division, on assure un résultat entier
+                if f"{{{char}}} /" in tpl:
+                    # On cherche à remplir {a} / {b} ou ({a} + {b}) / {c}
+                    if char == 'a' and "/ {b}" in tpl:
+                        b_val = random.randint(2, 10)
+                        res = random.randint(2, 10)
+                        vals['a'] = b_val * res
+                        vals['b'] = b_val
+                    elif char == 'a' and "({a} + {b}) / {c}" in tpl:
+                        c_val = random.randint(2, 10)
+                        res = random.randint(2, 10)
+                        total = c_val * res
+                        vals['a'] = random.randint(1, total - 1)
+                        vals['b'] = total - vals['a']
+                        vals['c'] = c_val
+                
+                if char not in vals:
+                    # Choix du range selon l'opérateur adjacent
+                    if f"* {{{char}}}" in tpl or f"{{{char}}} *" in tpl:
+                        vals[char] = random.randint(*range_mul)
+                    else:
+                        vals[char] = random.randint(*range_add)
 
-        elif q_type == 'simple_sub':
-            if difficulty == 'facile':
-                a = random.randint(5, 15)
-                b = random.randint(1, a - 1)
-            elif difficulty == 'difficile':
-                a = random.randint(20, 80)
-                b = random.randint(5, a - 1)
-            else:
-                a = random.randint(5, 20)
-                b = random.randint(1, a - 1)
-            display = f"{a} − {b}"
-            answer = a - b
+        # Calcul du résultat
+        try:
+            expr_str = tpl.format(**vals)
+            answer = eval(expr_str)
+            
+            # Formattage pour l'affichage (symboles jolis)
+            display = expr_str.replace('*', '×').replace('/', '÷').replace('-', '−')
+            
+            # Vérifications : résultat entier, positif, raisonnable et pas encore utilisé
+            if (isinstance(answer, (int, float)) and 
+                answer == int(answer) and 
+                0 <= answer <= 5000 and 
+                display not in used_questions):
+                
+                used_questions.add(display)
+                return {'display': display, 'answer': int(answer)}
+        except:
+            continue
 
-        elif q_type == 'simple_mul':
-            if difficulty == 'facile':
-                a, b = random.randint(2, 5), random.randint(2, 5)
-            elif difficulty == 'difficile':
-                a, b = random.randint(5, 15), random.randint(5, 15)
-            else:
-                a, b = random.randint(2, 9), random.randint(2, 9)
-            display = f"{a} * {b}"
-            answer = a * b
-
-        elif q_type == 'simple_div':
-            if difficulty == 'difficile':
-                b = random.randint(3, 15)
-                c = random.randint(3, 15)
-            else:
-                b = random.randint(2, 9)
-                c = random.randint(2, 9)
-            a = b * c
-            display = f"{a} ÷ {b}"
-            answer = c
-
-        elif q_type == 'double_add':
-            if difficulty == 'difficile':
-                a, b, c = random.randint(10, 30), random.randint(10, 30), random.randint(10, 30)
-            else:
-                a, b, c = random.randint(1, 10), random.randint(1, 10), random.randint(1, 10)
-            display = f"{a} + {b} + {c}"
-            answer = a + b + c
-
-        elif q_type == 'mixed_ops':
-            if difficulty == 'difficile':
-                a, b = random.randint(10, 40), random.randint(10, 30)
-                c = random.randint(5, 20)
-            else:
-                a, b = random.randint(1, 15), random.randint(1, 10)
-                c = random.randint(1, 10)
-            display = f"{a} + {b} − {c}"
-            answer = a + b - c
-
-        elif q_type == 'parentheses':
-            if difficulty == 'difficile':
-                a, b = random.randint(5, 15), random.randint(5, 15)
-                c = random.randint(3, 8)
-            else:
-                a, b = random.randint(1, 5), random.randint(1, 5)
-                c = random.randint(2, 5)
-            display = f"({a} + {b}) * {c}"
-            answer = (a + b) * c
-
-        elif q_type == 'mul_add':
-            if difficulty == 'difficile':
-                a, b = random.randint(3, 9), random.randint(3, 9)
-                c = random.randint(10, 50)
-            else:
-                a, b = random.randint(2, 5), random.randint(2, 5)
-                c = random.randint(1, 10)
-            display = f"{a} * {b} + {c}"
-            answer = a * b + c
-
-        elif q_type == 'triple_ops':
-            if difficulty == 'difficile':
-                a = random.randint(10, 30)
-                b = random.randint(5, 20)
-                c = random.randint(5, 20)
-                d = random.randint(5, 20)
-            else:
-                a = random.randint(1, 10)
-                b = random.randint(1, 10)
-                c = random.randint(1, 10)
-                d = random.randint(1, 10)
-            display = f"{a} + {b} − {c} + {d}"
-            answer = a + b - c + d
-
-        # Assurer un résultat positif et entier
-        if answer >= 0 and answer == int(answer) and display not in used_questions:
-            used_questions.add(display)
-            return {'display': display, 'answer': int(answer)}
-
-    # Fallback si on ne trouve rien de nouveau
+    # Fallback ultime
     a, b = random.randint(1, 10), random.randint(1, 10)
-    display = f"{a} + {b}"
-    answer = a + b
-    return {'display': display, 'answer': answer}
+    return {'display': f"{a} + {b}", 'answer': a + b}
 
 
 def get_room_players(room_code):
@@ -310,6 +280,7 @@ def handle_create_room(data):
     sid = request.sid
     player_name = data.get('player_name', 'Joueur').strip()
     winning_score = int(data.get('winning_score', 10))
+    difficulty = data.get('difficulty', 'normal')
 
     if not player_name:
         player_name = 'Joueur'
@@ -329,6 +300,7 @@ def handle_create_room(data):
         'game_started': False,
         'question_number': 0,
         'is_solo': False,
+        'difficulty': difficulty,
     }
 
     print(f"[ROOM CREATED] {code} by {player_name} (score to win: {winning_score})")

@@ -45,6 +45,14 @@
             <option value="20">20 Questions</option>
           </select>
         </div>
+        <div class="mb-3">
+          <label class="text-muted" style="font-size:.8rem;">Difficulté</label>
+          <select id="create-difficulty" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'Orbitron';font-size:.9rem;margin-top:4px;cursor:pointer;width:100%;">
+            <option value="facile">🟩 Facile</option>
+            <option value="normal" selected>🟨 Normal</option>
+            <option value="difficile">🟥 Difficile</option>
+          </select>
+        </div>
         <button class="btn-3d primary" id="btn-create" onclick="createRoom()" style="width:100%;">🚀 Créer la Salle</button>
         <div id="create-error" class="error-msg hidden"></div>
       </div>
