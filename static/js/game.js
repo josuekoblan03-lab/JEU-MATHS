@@ -161,28 +161,28 @@ socket.on('new_question', (data) => {
   // Timer
   const timerContainer = document.getElementById('solo-timer');
   const timerBar = document.getElementById('timer-bar');
-  timerContainer.classList.remove('hidden');
-  timerBar.style.transform = ''; // reset inline style
-  timerBar.classList.remove('running');
-  void timerBar.offsetWidth; // trigger reflow to restart animation
   
   if (data.is_solo) {
+    timerContainer.classList.remove('hidden');
+    timerBar.style.transform = ''; // reset inline style
+    timerBar.classList.remove('running');
+    void timerBar.offsetWidth; // trigger reflow to restart animation
     timerBar.style.animationDuration = '10s';
-  } else {
-    timerBar.style.animationDuration = '30s';
-  }
-  
-  timerBar.classList.add('running');
+    timerBar.classList.add('running');
 
-  // Start client-driven timeout to trigger time_up if unanswered
-  if (window.questionTimeout) clearTimeout(window.questionTimeout);
-  const durationMs = data.is_solo ? 10000 : 30000;
-  window.questionTimeout = setTimeout(() => {
-    // Only emit if the card is NOT flipped (meaning we haven't received a response yet)
-    if (!document.getElementById('card-inner').classList.contains('flipped')) {
-      socket.emit('timer_expired', { room_code: ROOM_CODE });
-    }
-  }, durationMs + 1000); // 1s buffer to allow any in-flight answers to arrive
+    // Start client-driven timeout to trigger time_up if unanswered
+    if (window.questionTimeout) clearTimeout(window.questionTimeout);
+    window.questionTimeout = setTimeout(() => {
+      if (!document.getElementById('card-inner').classList.contains('flipped')) {
+        socket.emit('timer_expired', { room_code: ROOM_CODE });
+      }
+    }, 11000); 
+  } else {
+    // Multiplayer: hide timer, no auto-timeout
+    timerContainer.classList.add('hidden');
+    timerBar.classList.remove('running');
+    if (window.questionTimeout) clearTimeout(window.questionTimeout);
+  }
 
   // Update question text with GSAP animation
   const qText = document.getElementById('question-text');

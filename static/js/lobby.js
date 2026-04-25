@@ -52,6 +52,25 @@ function startGame() {
   socket.emit('start_game', { room_code: ROOM_CODE });
 }
 
+// ── Copy Room Code ──
+function copyRoomCode() {
+  navigator.clipboard.writeText(ROOM_CODE).then(() => {
+    const btn = document.getElementById('btn-copy');
+    const originalText = btn.textContent;
+    btn.textContent = '✅';
+    btn.classList.add('copied');
+    
+    if (typeof playSFX === 'function') playSFX('pop');
+
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(err => {
+    console.error('Erreur lors de la copie :', err);
+  });
+}
+
 // ── Socket Events ──
 // Re-join the room on connect
 socket.on('connect', () => {

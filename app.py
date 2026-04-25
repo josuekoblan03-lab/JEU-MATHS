@@ -22,7 +22,9 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 # ─────────────────────────────────────────────
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mathquest-secret-key-2026'
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+import os
+async_mode = 'gevent' if os.environ.get('PORT') else 'threading'
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode=async_mode)
 
 # ─────────────────────────────────────────────
 # Stockage en mémoire
@@ -323,6 +325,7 @@ def handle_create_room(data):
         'answered_by': None,
         'used_questions': set(),
         'winning_score': winning_score,
+        'max_questions': winning_score,
         'game_started': False,
         'question_number': 0,
         'is_solo': False,
@@ -357,6 +360,7 @@ def handle_create_solo_game(data):
         'answered_by': None,
         'used_questions': set(),
         'winning_score': winning_score,
+        'max_questions': winning_score,
         'game_started': True,
         'question_number': 0,
         'is_solo': True,
@@ -518,52 +522,53 @@ def send_new_question(room_code):
             'is_solo': room.get('is_solo', False)
         }, room_code)
 
-        # Chronomètre serveur en arrière-plan
-        timer_duration = 10.0 if room.get('is_solo') else 30.0
-        q_num = room['question_number']
+        # Chronomètre serveur en arrière-plan (uniquement en solo)
+        if room.get('is_solo'):
+            timer_duration = 10.0
+            q_num = room['question_number']
 
-        def timeout_task():
-            try:
-                socketio.sleep(timer_duration)
-                if room_code not in rooms:
-                    return
-                r = rooms[room_code]
-                if r['question_number'] != q_num or r['answered']:
-                    return  # Déjà répondu
+            def timeout_task():
+                try:
+                    socketio.sleep(timer_duration)
+                    if room_code not in rooms:
+                        return
+                    r = rooms[room_code]
+                    if r['question_number'] != q_num or r['answered']:
+                        return  # Déjà répondu
 
-                r['answered'] = True
-                print(f"[TIMEOUT] Question #{q_num} timed out in room {room_code}")
-                is_over = (r['question_number'] >= r['max_questions'])
-                if is_over:
-                    r['game_started'] = False
+                    r['answered'] = True
+                    print(f"[TIMEOUT] Question #{q_num} timed out in room {room_code}")
+                    is_over = (r['question_number'] >= r['max_questions'])
+                    if is_over:
+                        r['game_started'] = False
 
-                emit_to_room('time_up', {
-                    'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
-                    'answer': r['current_question']['answer'],
-                    'is_over': is_over
-                }, room_code)
-                
-                # Enchaînement serveur
-                socketio.sleep(2.5)
-                if is_over:
-                    rankings = get_rankings(room_code)
-                    winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
-                    if not r.get('is_solo') and rankings:
-                        winner_name = rankings[0]['name']
-                    emit_to_room('game_over', {
-                        'winner': winner_name,
-                        'rankings': rankings,
-                        'room_code': room_code,
-                        'is_solo': r.get('is_solo', False),
-                        'max_questions': r['max_questions']
+                    emit_to_room('time_up', {
+                        'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
+                        'answer': r['current_question']['answer'],
+                        'is_over': is_over
                     }, room_code)
-                else:
-                    send_new_question(room_code)
+                    
+                    # Enchaînement serveur
+                    socketio.sleep(2.5)
+                    if is_over:
+                        rankings = get_rankings(room_code)
+                        winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
+                        if not r.get('is_solo') and rankings:
+                            winner_name = rankings[0]['name']
+                        emit_to_room('game_over', {
+                            'winner': winner_name,
+                            'rankings': rankings,
+                            'room_code': room_code,
+                            'is_solo': r.get('is_solo', False),
+                            'max_questions': r['max_questions']
+                        }, room_code)
+                    else:
+                        send_new_question(room_code)
 
-            except Exception as e:
-                print(f"ERROR in timeout_task: {e}")
+                except Exception as e:
+                    print(f"ERROR in timeout_task: {e}")
 
-        socketio.start_background_task(timeout_task)
+            socketio.start_background_task(timeout_task)
 
 
     except Exception as e:
@@ -598,7 +603,10 @@ def handle_timer_expired(data):
     if code not in rooms:
         return
     room = rooms[code]
-    
+    # Ignore if not solo
+    if not room.get('is_solo'):
+        return
+        
     # Only allow host/solo to trigger timeout to avoid race conditions
     if room.get('is_solo') or room.get('host') == sid:
         if not room['game_started'] or room['answered']:
