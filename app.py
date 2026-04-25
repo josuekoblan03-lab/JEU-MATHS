@@ -286,10 +286,10 @@ def handle_disconnect():
                         if rooms[room_code]['host'] == player_sid:
                             rooms[room_code]['host'] = rooms[room_code]['player_order'][0] if rooms[room_code]['player_order'] else None
 
-                        socketio.emit('player_left', {
+                        emit_to_room('player_left', {
                             'player_name': p_name,
                             'players': get_room_players(room_code)
-                        }, room=room_code)
+                        }, room_code)
                         
                         # Supprimer la salle si vide
                         if len(rooms[room_code]['players']) == 0:
@@ -436,17 +436,17 @@ def handle_join_room(data):
 
     join_room(code)
 
-    socketio.emit('room_joined', {
+    emit_to_room('room_joined', {
         'room_code': code,
         'player_name': player_name
-    }, room=code)
+    }, code)
 
     # Notifier tous les joueurs
-    socketio.emit('player_joined', {
+    emit_to_room('player_joined', {
         'player_name': player_name,
         'players': get_room_players(code),
         'is_host': room['host'] == sid
-    }, room=code)
+    }, code)
 
     # Si la partie est déjà lancée et qu'une question est en cours,
     # on la renvoie au joueur pour qu'il puisse rattraper (rattrape la condition de course)
@@ -484,7 +484,7 @@ def handle_start_game(data):
     room['game_started'] = True
     print(f"[GAME START] Room {code} - {len(room['players'])} players")
 
-    socketio.emit('game_started', {'room_code': code}, room=code)
+    emit_to_room('game_started', {'room_code': code}, code)
 
     # Envoyer la première question après un délai suffisant
     # pour que tous les joueurs aient le temps de charger la page /game/
@@ -809,13 +809,13 @@ def handle_play_again(data):
 
     if room.get('is_solo'):
         room['game_started'] = True
-        socketio.emit('solo_restart', {'room_code': code}, room=code)
+        emit_to_room('solo_restart', {'room_code': code}, code)
         def delayed_first_question():
             socketio.sleep(2.5)
             send_new_question(code)
         socketio.start_background_task(delayed_first_question)
     else:
-        socketio.emit('go_to_lobby', {'room_code': code}, room=code)
+        emit_to_room('go_to_lobby', {'room_code': code}, code)
 
 
 # ─────────────────────────────────────────────
