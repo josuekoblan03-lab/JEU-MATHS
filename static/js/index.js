@@ -5,7 +5,7 @@
  * ═══════════════════════════════════════
  */
 
-const socket = io({ transports: ['websocket'] });
+const socket = io();
 
 // ── Tab switching ──
 function showTab(tab) {

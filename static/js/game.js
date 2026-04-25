@@ -5,7 +5,7 @@
  * ═══════════════════════════════════════
  */
 
-const socket = io({ transports: ['websocket'] });
+const socket = io();
 const playerName = sessionStorage.getItem('player_name') || 'Joueur';
 let isLocked = false;
 let questionReceived = false;
