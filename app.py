@@ -418,10 +418,10 @@ def handle_join_room(data):
 
     join_room(code)
 
-    emit('room_joined', {
+    socketio.emit('room_joined', {
         'room_code': code,
         'player_name': player_name
-    })
+    }, room=code)
 
     # Notifier tous les joueurs
     socketio.emit('player_joined', {
@@ -466,7 +466,7 @@ def handle_start_game(data):
     room['game_started'] = True
     print(f"[GAME START] Room {code} - {len(room['players'])} players")
 
-    emit('game_started', {'room_code': code}, room=code)
+    socketio.emit('game_started', {'room_code': code}, room=code)
 
     # Envoyer la première question après un court délai
     def delayed_first_question():
@@ -628,8 +628,12 @@ def handle_submit_answer(data):
         else:
             # Prochaine question après un délai
             def delayed_next():
-                socketio.sleep(2.5)
-                send_new_question(code)
+                try:
+                    socketio.sleep(2.5)
+                    send_new_question(code)
+                except Exception as e:
+                    print(f"ERROR in delayed_next: {e}")
+                    socketio.emit('error', {'message': f'Server error: {e}'}, room=code)
             socketio.start_background_task(delayed_next)
 
     else:
@@ -674,13 +678,13 @@ def handle_play_again(data):
 
     if room.get('is_solo'):
         room['game_started'] = True
-        emit('solo_restart', {'room_code': code}, room=code)
+        socketio.emit('solo_restart', {'room_code': code}, room=code)
         def delayed_first_question():
             socketio.sleep(2.5)
             send_new_question(code)
         socketio.start_background_task(delayed_first_question)
     else:
-        emit('go_to_lobby', {'room_code': code}, room=code)
+        socketio.emit('go_to_lobby', {'room_code': code}, room=code)
 
 
 # ─────────────────────────────────────────────
