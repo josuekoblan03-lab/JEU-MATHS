@@ -549,7 +549,7 @@ def send_new_question(room_code):
                     }, room_code)
                     
                     # Enchaînement serveur
-                    socketio.sleep(2.5)
+                    socketio.sleep(1.2)
                     if is_over:
                         rankings = get_rankings(room_code)
                         winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
@@ -713,7 +713,7 @@ def handle_submit_answer(data):
             }, code)
             
             # Server-side progression (robust greenlet sleep)
-            socketio.sleep(2.0)
+            socketio.sleep(1.5)
             rankings = get_rankings(code)
             winner_name = player_name
             if not room.get('is_solo') and rankings:
@@ -738,7 +738,7 @@ def handle_submit_answer(data):
             }, code)
             
             # Server-side progression (robust greenlet sleep)
-            socketio.sleep(2.5)
+            socketio.sleep(1.2)
             send_new_question(code)
 
     else:

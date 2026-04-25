@@ -227,7 +227,7 @@ socket.on('correct_answer', (data) => {
     } else {
       socket.emit('request_next_question', { room_code: ROOM_CODE });
     }
-  }, 2500);
+  }, 1200);
 });
 
 // ── Event: Time Up ──
@@ -251,7 +251,7 @@ socket.on('time_up', (data) => {
     } else {
       socket.emit('request_next_question', { room_code: ROOM_CODE });
     }
-  }, 2500);
+  }, 1200);
 });
 
 socket.on('wrong_answer', (data) => {
