@@ -500,44 +500,44 @@ def send_new_question(room_code):
         'is_solo': room.get('is_solo', False)
     }, room=room_code)
 
-        # Démarrer le chronomètre de 10s UNIQUEMENT pour le mode solo
-        if room.get('is_solo'):
-            q_num = room['question_number']
-            def timeout_check():
-                if room_code in rooms:
-                    r = rooms[room_code]
-                    if r['question_number'] == q_num and not r['answered']:
-                        # Temps écoulé !
-                        r['answered'] = True
-                        socketio.emit('time_up', {
-                            'message': '⏳ Temps écoulé (10s) !',
-                            'answer': r['current_question']['answer']
-                        }, room=room_code)
-                        
-                        if r['question_number'] >= r['max_questions']:
-                            r['game_started'] = False
-                            def delayed_game_over():
-                                time.sleep(2.5)
-                                rankings = get_rankings(room_code)
-                                winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
-                                if not r.get('is_solo') and rankings:
-                                    winner_name = rankings[0]['name']
+    # Démarrer le chronomètre de 10s UNIQUEMENT pour le mode solo
+    if room.get('is_solo'):
+        q_num = room['question_number']
+        def timeout_check():
+            if room_code in rooms:
+                r = rooms[room_code]
+                if r['question_number'] == q_num and not r['answered']:
+                    # Temps écoulé !
+                    r['answered'] = True
+                    socketio.emit('time_up', {
+                        'message': '⏳ Temps écoulé (10s) !',
+                        'answer': r['current_question']['answer']
+                    }, room=room_code)
+                    
+                    if r['question_number'] >= r['max_questions']:
+                        r['game_started'] = False
+                        def delayed_game_over():
+                            time.sleep(2.5)
+                            rankings = get_rankings(room_code)
+                            winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
+                            if not r.get('is_solo') and rankings:
+                                winner_name = rankings[0]['name']
 
-                                socketio.emit('game_over', {
-                                    'winner': winner_name,
-                                    'rankings': rankings,
-                                    'room_code': room_code,
-                                    'is_solo': r.get('is_solo', False),
-                                    'max_questions': r['max_questions']
-                                }, room=room_code)
-                            threading.Thread(target=delayed_game_over, daemon=True).start()
-                        else:
-                            def delayed_next():
-                                time.sleep(2.5)
-                                send_new_question(room_code)
-                            threading.Thread(target=delayed_next, daemon=True).start()
+                            socketio.emit('game_over', {
+                                'winner': winner_name,
+                                'rankings': rankings,
+                                'room_code': room_code,
+                                'is_solo': r.get('is_solo', False),
+                                'max_questions': r['max_questions']
+                            }, room=room_code)
+                        threading.Thread(target=delayed_game_over, daemon=True).start()
+                    else:
+                        def delayed_next():
+                            time.sleep(2.5)
+                            send_new_question(room_code)
+                        threading.Thread(target=delayed_next, daemon=True).start()
 
-            threading.Timer(10.0, timeout_check).start()
+        threading.Timer(10.0, timeout_check).start()
 
 
 @socketio.on('submit_answer')
