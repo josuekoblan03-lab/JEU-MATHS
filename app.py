@@ -12,7 +12,6 @@ Gère :
 """
 
 import random
-import time
 import threading
 import string
 import math
@@ -471,9 +470,9 @@ def handle_start_game(data):
 
     # Envoyer la première question après un court délai
     def delayed_first_question():
-        time.sleep(1.5)
+        socketio.sleep(1.5)
         send_new_question(code)
-    threading.Thread(target=delayed_first_question, daemon=True).start()
+    socketio.start_background_task(delayed_first_question)
 
 
 def send_new_question(room_code):
@@ -517,7 +516,7 @@ def send_new_question(room_code):
                     if r['question_number'] >= r['max_questions']:
                         r['game_started'] = False
                         def delayed_game_over():
-                            time.sleep(2.5)
+                            socketio.sleep(2.5)
                             rankings = get_rankings(room_code)
                             winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
                             if not r.get('is_solo') and rankings:
@@ -530,14 +529,17 @@ def send_new_question(room_code):
                                 'is_solo': r.get('is_solo', False),
                                 'max_questions': r['max_questions']
                             }, room=room_code)
-                        threading.Thread(target=delayed_game_over, daemon=True).start()
+                        socketio.start_background_task(delayed_game_over)
                     else:
                         def delayed_next():
-                            time.sleep(2.5)
+                            socketio.sleep(2.5)
                             send_new_question(room_code)
-                        threading.Thread(target=delayed_next, daemon=True).start()
+                        socketio.start_background_task(delayed_next)
 
-        threading.Timer(10.0, timeout_check).start()
+        def timer_task():
+            socketio.sleep(10.0)
+            timeout_check()
+        socketio.start_background_task(timer_task)
 
 
 @socketio.on('submit_answer')
@@ -608,7 +610,7 @@ def handle_submit_answer(data):
             print(f"[GAME OVER] {player_name} finishes! Room {code}")
             
             def delayed_game_over():
-                time.sleep(2)
+                socketio.sleep(2.0)
                 rankings = get_rankings(code)
                 winner_name = player_name
                 if not room.get('is_solo') and rankings:
@@ -622,13 +624,13 @@ def handle_submit_answer(data):
                     'max_questions': room['max_questions']
                 }, room=code)
                 
-            threading.Thread(target=delayed_game_over, daemon=True).start()
+            socketio.start_background_task(delayed_game_over)
         else:
             # Prochaine question après un délai
             def delayed_next():
-                time.sleep(2.5)
+                socketio.sleep(2.5)
                 send_new_question(code)
-            threading.Thread(target=delayed_next, daemon=True).start()
+            socketio.start_background_task(delayed_next)
 
     else:
         # ─── MAUVAISE RÉPONSE ───
@@ -674,9 +676,9 @@ def handle_play_again(data):
         room['game_started'] = True
         emit('solo_restart', {'room_code': code}, room=code)
         def delayed_first_question():
-            time.sleep(2.5)
+            socketio.sleep(2.5)
             send_new_question(code)
-        threading.Thread(target=delayed_first_question, daemon=True).start()
+        socketio.start_background_task(delayed_first_question)
     else:
         emit('go_to_lobby', {'room_code': code}, room=code)
 
