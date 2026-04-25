@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MathQuest — Salle d'attente. En attente des joueurs...">
+  <title>MathQuest — Salle {{ room_code }}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="page">
+    <!-- Bouton Quitter -->
+    <button class="btn-3d" style="position: absolute; top: 20px; right: 20px; background:var(--danger); font-size: 0.75rem; padding: 8px 16px;" onclick="window.location.href='/'">🚪 Quitter</button>
+
+    <p class="section-title">Code de la Salle</p>
+
+    <!-- Room Code 3D Characters -->
+    <div class="room-code-display" id="room-code-display"></div>
+
+    <p class="text-muted mt-2" style="font-size:.85rem;">Partagez ce code avec vos amis</p>
+
+    <!-- Players List -->
+    <div class="mt-4" style="width:100%;max-width:420px;">
+      <p class="section-title">Joueurs Connectés</p>
+      <div class="player-list" id="player-list">
+        <!-- Players injected by JS -->
+      </div>
+    </div>
+
+    <!-- Start Button (Host only) -->
+    <button class="btn-3d accent pulse mt-4 hidden" id="btn-start" onclick="startGame()">
+      ⚡ Lancer la Partie
+    </button>
+
+    <p class="text-muted mt-2 hidden" id="wait-msg" style="font-size:.85rem;">
+      En attente que l'hôte lance la partie...
+    </p>
+
+    <div id="lobby-error" class="error-msg hidden"></div>
+  </div>
+
+  <!-- Audio Mute Button -->
+  <button id="mute-btn" class="mute-btn" onclick="toggleMute()">🔊</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="/static/js/audio.js"></script>
+  <script>
+    const ROOM_CODE = "{{ room_code }}";
+  </script>
+  <script src="/static/js/lobby.js"></script>
+</body>
+</html>

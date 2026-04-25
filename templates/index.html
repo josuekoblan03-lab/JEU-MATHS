@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MathQuest — Jeu de calcul multijoueur en temps réel. Affrontez vos amis !">
+  <title>MathQuest — Accueil</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="page">
+    <!-- Logo 3D -->
+    <h1 class="logo-3d">MATHQUEST</h1>
+    <p class="logo-sub">Calcul Multijoueur • Temps Réel</p>
+
+    <!-- Main Card -->
+    <div class="card-3d mt-4" style="max-width:460px;width:100%;text-align:center;" id="main-card">
+
+      <!-- Tab Toggle -->
+      <div class="gap-row mb-3" style="gap:8px;">
+        <button class="btn-3d" id="btn-tab-solo" onclick="showTab('solo')" style="font-size:.7rem;padding:8px 16px;background:var(--gold);color:#000;">Solo (10s)</button>
+        <button class="btn-3d primary" id="btn-tab-create" onclick="showTab('create')" style="font-size:.7rem;padding:8px 16px;">Créer</button>
+        <button class="btn-3d accent" id="btn-tab-join" onclick="showTab('join')" style="font-size:.7rem;padding:8px 16px;">Rejoindre</button>
+      </div>
+
+      <!-- Create Room -->
+      <div id="tab-create" class="hidden">
+        <div class="section-title">Nouvelle Partie</div>
+        <input type="text" class="input-3d mb-2" id="create-name" placeholder="VOTRE PSEUDO" maxlength="15" style="letter-spacing:2px;">
+        <div class="mb-2">
+          <label class="text-muted" style="font-size:.8rem;">Score de victoire</label>
+          <select id="winning-score" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'Orbitron';font-size:.9rem;margin-top:4px;cursor:pointer;">
+            <option value="5">5 Points</option>
+            <option value="10" selected>10 Points</option>
+            <option value="15">15 Points</option>
+            <option value="20">20 Points</option>
+          </select>
+        </div>
+        <button class="btn-3d primary" id="btn-create" onclick="createRoom()">🚀 Créer la Salle</button>
+        <div id="create-error" class="error-msg hidden"></div>
+      </div>
+
+      <!-- Join Room -->
+      <div id="tab-join" class="hidden">
+        <div class="section-title">Rejoindre une Salle</div>
+        <input type="text" class="input-3d mb-2" id="join-name" placeholder="VOTRE PSEUDO" maxlength="15" style="letter-spacing:2px;">
+        <input type="text" class="input-3d mb-2" id="join-code" placeholder="CODE" maxlength="6" style="font-size:1.5rem;">
+        <button class="btn-3d accent" id="btn-join" onclick="joinRoom()">🎮 Rejoindre</button>
+        <div id="join-error" class="error-msg hidden"></div>
+      </div>
+
+      <!-- Solo Game -->
+      <div id="tab-solo">
+        <div class="section-title">Mode Solo (Chrono 10s)</div>
+        <input type="text" class="input-3d mb-2" id="solo-name" placeholder="VOTRE PSEUDO" maxlength="15" style="letter-spacing:2px;">
+        
+        <div class="mb-3">
+          <label class="text-muted" style="font-size:.8rem;">Nombre de questions</label>
+          <select id="solo-winning-score" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'Orbitron';font-size:.9rem;margin-top:4px;cursor:pointer;width:100%;">
+            <option value="5">5 Questions</option>
+            <option value="10" selected>10 Questions</option>
+            <option value="20">20 Questions</option>
+          </select>
+        </div>
+
+        <div class="mb-2">
+          <label class="text-muted" style="font-size:.8rem;">Niveau de difficulté</label>
+          <select id="solo-difficulty" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'Orbitron';font-size:.9rem;margin-top:4px;cursor:pointer;width:100%;">
+            <option value="facile">🟩 Facile</option>
+            <option value="normal" selected>🟨 Normal</option>
+            <option value="difficile">🟥 Difficile</option>
+          </select>
+        </div>
+
+        <button class="btn-3d" id="btn-solo" onclick="createSoloGame()" style="background:var(--gold);color:#000;">⏱️ Lancer Solo</button>
+        <div id="solo-error" class="error-msg hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Mute Button -->
+  <button id="mute-btn" class="mute-btn" onclick="toggleMute()">🔊</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="/static/js/audio.js"></script>
+  <script src="/static/js/index.js"></script>
+</body>
+</html>

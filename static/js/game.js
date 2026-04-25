@@ -1,0 +1,237 @@
+/**
+ * ═══════════════════════════════════════
+ * MathQuest — game.js
+ * Jeu en cours : question 3D, réponses, scores
+ * ═══════════════════════════════════════
+ */
+
+const socket = io();
+const playerName = sessionStorage.getItem('player_name') || 'Joueur';
+let isLocked = false;
+
+// ── Socket: reconnect to room ──
+socket.on('connect', () => {
+  socket.emit('join_room', { room_code: ROOM_CODE, player_name: playerName });
+});
+
+// ── 3D TILT on Question Card (mouse follow) ──
+const questionCard = document.getElementById('question-card');
+questionCard.addEventListener('mousemove', (e) => {
+  const rect = questionCard.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width - 0.5;
+  const y = (e.clientY - rect.top) / rect.height - 0.5;
+  questionCard.style.transform = `perspective(1000px) rotateY(${x * 15}deg) rotateX(${-y * 15}deg)`;
+});
+questionCard.addEventListener('mouseleave', () => {
+  questionCard.style.transform = 'perspective(1000px) rotateY(0) rotateX(0)';
+});
+
+// ── Touch tilt for mobile ──
+questionCard.addEventListener('touchmove', (e) => {
+  const touch = e.touches[0];
+  const rect = questionCard.getBoundingClientRect();
+  const x = (touch.clientX - rect.left) / rect.width - 0.5;
+  const y = (touch.clientY - rect.top) / rect.height - 0.5;
+  questionCard.style.transform = `perspective(1000px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`;
+});
+questionCard.addEventListener('touchend', () => {
+  questionCard.style.transform = 'perspective(1000px) rotateY(0) rotateX(0)';
+});
+
+// ── Render player scores ──
+function renderScores(players, scorerId) {
+  const list = document.getElementById('player-scores');
+  // Find leader
+  const maxScore = Math.max(...players.map(p => p.score));
+
+  list.innerHTML = '';
+  players.sort((a, b) => b.score - a.score).forEach((p) => {
+    const card = document.createElement('div');
+    const isLeader = p.score === maxScore && p.score > 0;
+    const justScored = p.id === scorerId;
+    card.className = 'player-card' + (isLeader ? ' leader' : '') + (justScored ? ' scored' : '');
+
+    card.innerHTML = `
+      <div class="player-avatar">${p.name.charAt(0).toUpperCase()}</div>
+      <span class="player-name">
+        ${p.name}
+        ${isLeader ? '<span class="leader-badge">LEADER</span>' : ''}
+      </span>
+      <span class="player-score score-roller">${animateScoreDigits(p.score, justScored)}</span>
+    `;
+    list.appendChild(card);
+  });
+}
+
+/** Create score digit spans with roll animation */
+function animateScoreDigits(score, animate) {
+  return String(score).split('').map(d =>
+    `<span class="score-digit${animate ? ' rolling' : ''}">${d}</span>`
+  ).join('');
+}
+
+// ── Submit answer ──
+function submitAnswer() {
+  if (isLocked) return;
+  const input = document.getElementById('answer-input');
+  const answer = input.value.trim();
+  if (!answer) return;
+
+  // Ripple on button
+  const btn = document.getElementById('btn-submit');
+  const ripple = document.createElement('span');
+  ripple.classList.add('ripple');
+  ripple.style.width = ripple.style.height = '100px';
+  ripple.style.left = '50%'; ripple.style.top = '50%';
+  ripple.style.marginLeft = '-50px'; ripple.style.marginTop = '-50px';
+  btn.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+
+  socket.emit('submit_answer', { room_code: ROOM_CODE, answer: answer });
+}
+
+// ── Enter key to submit ──
+document.getElementById('answer-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitAnswer();
+});
+
+// ── Show feedback message ──
+function showFeedback(message, type) {
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback ' + type;
+  fb.textContent = message;
+  fb.classList.remove('hidden');
+  // Re-trigger animation
+  fb.style.animation = 'none';
+  fb.offsetHeight; // reflow
+  fb.style.animation = '';
+}
+
+function hideFeedback() {
+  document.getElementById('feedback').classList.add('hidden');
+}
+
+// ── Lock/Unlock input ──
+function lockInput() {
+  isLocked = true;
+  document.getElementById('answer-input').classList.add('locked');
+  document.getElementById('answer-input').disabled = true;
+  document.getElementById('btn-submit').disabled = true;
+}
+
+function unlockInput() {
+  isLocked = false;
+  const input = document.getElementById('answer-input');
+  input.classList.remove('locked', 'correct', 'wrong');
+  input.disabled = false;
+  input.value = '';
+  input.focus();
+  document.getElementById('btn-submit').disabled = false;
+  hideFeedback();
+}
+
+// ══════════════════════════════════════
+// SOCKET.IO EVENTS
+// ══════════════════════════════════════
+
+socket.on('new_question', (data) => {
+  if (typeof playSFX === 'function') playSFX('pop');
+
+  // Reset card flip
+  document.getElementById('card-inner').classList.remove('flipped');
+
+  // Solo Timer
+  const timerContainer = document.getElementById('solo-timer');
+  const timerBar = document.getElementById('timer-bar');
+  if (data.is_solo) {
+    timerContainer.classList.remove('hidden');
+    timerBar.style.transform = ''; // reset inline style
+    timerBar.classList.remove('running');
+    void timerBar.offsetWidth; // trigger reflow to restart animation
+    timerBar.classList.add('running');
+  } else {
+    timerContainer.classList.add('hidden');
+  }
+
+  // Update question text with GSAP animation
+  const qText = document.getElementById('question-text');
+  const qLabel = document.getElementById('question-label');
+  qLabel.textContent = `Question #${data.question_number}`;
+
+  gsap.fromTo(qText, { opacity: 0, rotateX: -90, scale: 0.8 },
+    { opacity: 1, rotateX: 0, scale: 1, duration: 0.6, ease: 'back.out(1.7)' });
+  qText.textContent = data.question;
+
+  // Update scores
+  renderScores(data.scores, null);
+
+  // Unlock input
+  unlockInput();
+});
+
+socket.on('correct_answer', (data) => {
+  // Flip the card to reveal answer
+  document.getElementById('answer-reveal').textContent = `${data.answer} ✓ ${data.player_name}`;
+  document.getElementById('card-inner').classList.add('flipped');
+
+  lockInput();
+
+  if (data.player_name === playerName) {
+    // I scored!
+    document.getElementById('answer-input').classList.add('correct');
+    showFeedback(`🎉 Bravo ! Bonne réponse : ${data.answer}`, 'correct');
+    if (typeof playSFX === 'function') playSFX('correct');
+  } else {
+    showFeedback(`${data.player_name} a trouvé : ${data.answer}`, 'late');
+    if (typeof playSFX === 'function') playSFX('correct'); // Ou un son différent si on veut
+  }
+
+  // Update scores with animation
+  renderScores(data.scores, data.player_id);
+});
+
+socket.on('time_up', (data) => {
+  if (typeof playSFX === 'function') playSFX('time_up');
+
+  document.getElementById('answer-reveal').textContent = `${data.answer} ⏳ Trop tard`;
+  document.getElementById('card-inner').classList.add('flipped');
+
+  lockInput();
+  
+  // Stop timer visual
+  const timerBar = document.getElementById('timer-bar');
+  timerBar.classList.remove('running');
+  
+  document.getElementById('answer-input').classList.add('wrong');
+  showFeedback(data.message, 'wrong');
+});
+
+socket.on('wrong_answer', (data) => {
+  if (typeof playSFX === 'function') playSFX('wrong');
+  document.getElementById('answer-input').classList.add('wrong');
+  showFeedback(data.message, 'wrong');
+  setTimeout(() => {
+    document.getElementById('answer-input').classList.remove('wrong');
+    document.getElementById('answer-input').value = '';
+    document.getElementById('answer-input').focus();
+  }, 800);
+});
+
+socket.on('too_late', (data) => {
+  if (typeof playSFX === 'function') playSFX('wrong');
+  lockInput();
+  showFeedback(`⏰ Trop tard ! ${data.answered_by} a déjà répondu.`, 'late');
+});
+
+socket.on('game_over', (data) => {
+  // Store rankings for result page
+  sessionStorage.setItem('rankings', JSON.stringify(data.rankings));
+  sessionStorage.setItem('winner', data.winner);
+  sessionStorage.setItem('is_solo', data.is_solo ? 'true' : 'false');
+  sessionStorage.setItem('max_questions', data.max_questions || '10');
+  window.location.href = '/result/' + data.room_code;
+});
+
+socket.on('player_joined', (data) => {
+  renderScores(data.players, null);
+});
