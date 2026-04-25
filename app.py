@@ -77,16 +77,19 @@ def generate_question(used_questions, difficulty='normal'):
     import random
 
     for _ in range(100): # Limite de tentatives pour éviter une boucle infinie
-        # Définition des plages de nombres
+        # Définition des plages de nombres et limites de résultat
         if difficulty == 'facile':
-            range_add = (1, 15)
+            range_add = (1, 10)
             range_mul = (2, 5)
+            max_answer = 20
         elif difficulty == 'difficile':
             range_add = (10, 100)
-            range_mul = (3, 15)
+            range_mul = (3, 20)
+            max_answer = 10000
         else: # normal
-            range_add = (1, 50)
-            range_mul = (2, 10)
+            range_add = (1, 20)
+            range_mul = (2, 8)
+            max_answer = 60
 
         # Liste de modèles d'expressions selon la difficulté
         if difficulty == 'facile':
@@ -113,25 +116,24 @@ def generate_question(used_questions, difficulty='normal'):
                 "({a} + {b}) * {c}",
                 "{a} * {b} - {c}",
                 "{a} / {b} + {c}",
-                "{a} + {b} * {c}",
-                "{a} + {b} + {c} + {d}"
+                "{a} + {b} * {c}"
             ])
 
         # Remplissage des variables
         vals = {}
         for char in ['a', 'b', 'c', 'd', 'e']:
             if char in tpl:
-                # Si c'est une division, on assure un résultat entier
+                # Si c'est une division, on assure un résultat entier et petit
                 if f"{{{char}}} /" in tpl:
                     # On cherche à remplir {a} / {b} ou ({a} + {b}) / {c}
                     if char == 'a' and "/ {b}" in tpl:
-                        b_val = random.randint(2, 10)
-                        res = random.randint(2, 10)
+                        b_val = random.randint(2, 6 if difficulty != 'difficile' else 15)
+                        res = random.randint(2, 6 if difficulty != 'difficile' else 15)
                         vals['a'] = b_val * res
                         vals['b'] = b_val
                     elif char == 'a' and "({a} + {b}) / {c}" in tpl:
-                        c_val = random.randint(2, 10)
-                        res = random.randint(2, 10)
+                        c_val = random.randint(2, 6 if difficulty != 'difficile' else 12)
+                        res = random.randint(2, 6 if difficulty != 'difficile' else 12)
                         total = c_val * res
                         vals['a'] = random.randint(1, total - 1)
                         vals['b'] = total - vals['a']
@@ -155,7 +157,7 @@ def generate_question(used_questions, difficulty='normal'):
             # Vérifications : résultat entier, positif, raisonnable et pas encore utilisé
             if (isinstance(answer, (int, float)) and 
                 answer == int(answer) and 
-                0 <= answer <= 5000 and 
+                0 <= answer <= max_answer and 
                 display not in used_questions):
                 
                 used_questions.add(display)
