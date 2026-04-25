@@ -5,7 +5,7 @@
  * ═══════════════════════════════════════
  */
 
-const socket = io();
+const socket = io({ transports: ['websocket'] });
 const rankings = JSON.parse(sessionStorage.getItem('rankings') || '[]');
 const winner = sessionStorage.getItem('winner') || '?';
 
