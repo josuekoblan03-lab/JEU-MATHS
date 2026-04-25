@@ -158,24 +158,34 @@ function lockInput() {
 }
 
 function unlockInput() {
+  console.log("Unlocking input...");
   isLocked = false;
-  const input = document.getElementById('answer-input');
-  input.classList.remove('locked', 'correct', 'wrong');
-  input.disabled = false;
-  input.value = '';
-  
-  // On ne focus pas automatiquement sur mobile pour éviter le clavier système
-  if (window.innerWidth > 1024) input.focus();
-  
-  document.getElementById('btn-submit').disabled = false;
-  
-  // Réactiver le clavier virtuel
-  document.querySelectorAll('.key-3d').forEach(k => {
-    k.style.opacity = '1';
-    k.style.pointerEvents = 'auto';
-  });
+  try {
+    const input = document.getElementById('answer-input');
+    if (input) {
+      input.classList.remove('locked', 'correct', 'wrong');
+      input.disabled = false;
+      input.value = '';
+      if (window.innerWidth > 1024) {
+        setTimeout(() => input.focus(), 10);
+      }
+    }
+    
+    const btnSubmit = document.getElementById('btn-submit');
+    if (btnSubmit) btnSubmit.disabled = false;
+    
+    // Réactiver tout le clavier virtuel
+    const keys = document.querySelectorAll('.key-3d');
+    keys.forEach(k => {
+      k.style.opacity = '1';
+      k.style.pointerEvents = 'auto';
+    });
 
-  hideFeedback();
+    hideFeedback();
+  } catch (e) {
+    console.error("Critical error in unlockInput:", e);
+    isLocked = false; // Emergency reset
+  }
 }
 
 // ══════════════════════════════════════
@@ -286,14 +296,22 @@ socket.on('time_up', (data) => {
 });
 
 socket.on('wrong_answer', (data) => {
+  console.log("Wrong answer event received:", data);
   if (typeof playSFX === 'function') playSFX('wrong');
-  document.getElementById('answer-input').classList.add('wrong');
+  
+  const input = document.getElementById('answer-input');
+  if (input) {
+    input.classList.add('wrong');
+    gsap.to(input, { x: 10, duration: 0.1, repeat: 5, yoyo: true });
+  }
+  
   showFeedback(data.message, 'wrong');
+
+  // Déverrouiller après un délai
   setTimeout(() => {
-    document.getElementById('answer-input').classList.remove('wrong');
-    document.getElementById('answer-input').value = '';
-    document.getElementById('answer-input').focus();
-  }, 800);
+    console.log("Executing timeout unlock...");
+    unlockInput();
+  }, 1000);
 });
 
 socket.on('too_late', (data) => {
