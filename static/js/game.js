@@ -8,10 +8,27 @@
 const socket = io();
 const playerName = sessionStorage.getItem('player_name') || 'Joueur';
 let isLocked = false;
+let questionReceived = false;
 
 // ── Socket: reconnect to room ──
 socket.on('connect', () => {
   socket.emit('join_room', { room_code: ROOM_CODE, player_name: playerName });
+  
+  // Mécanisme de secours : si aucune question reçue après 3s, la demander activement
+  questionReceived = false;
+  setTimeout(() => {
+    if (!questionReceived) {
+      console.log('[FALLBACK] No question received after 3s, requesting...');
+      socket.emit('request_question', { room_code: ROOM_CODE });
+    }
+  }, 3000);
+  // Deuxième tentative après 6s
+  setTimeout(() => {
+    if (!questionReceived) {
+      console.log('[FALLBACK] Still no question after 6s, requesting again...');
+      socket.emit('request_question', { room_code: ROOM_CODE });
+    }
+  }, 6000);
 });
 
 // ── 3D TILT on Question Card (mouse follow) ──
@@ -135,6 +152,7 @@ function unlockInput() {
 // ══════════════════════════════════════
 
 socket.on('new_question', (data) => {
+  questionReceived = true;
   if (typeof playSFX === 'function') playSFX('pop');
 
   // Reset card flip

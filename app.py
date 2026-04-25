@@ -22,7 +22,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 # ─────────────────────────────────────────────
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mathquest-secret-key-2026'
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # ─────────────────────────────────────────────
 # Stockage en mémoire
@@ -435,12 +435,12 @@ def handle_join_room(data):
     # Si la partie est déjà lancée et qu'une question est en cours,
     # on la renvoie au joueur pour qu'il puisse rattraper (rattrape la condition de course)
     if room['game_started'] and room['current_question']:
-        emit('new_question', {
+        socketio.emit('new_question', {
             'question': room['current_question']['display'],
             'question_number': room['question_number'],
             'scores': get_room_players(code),
             'is_solo': room.get('is_solo', False)
-        })
+        }, to=sid)
 
 
 @socketio.on('start_game')
@@ -655,6 +655,32 @@ def handle_submit_answer(data):
             'message': f'Mauvaise réponse ! {player_answer} n\'est pas correct.'
         }, to=sid)
         print(f"[WRONG] {player_name} answered {player_answer} (expected {correct_answer}) - Room {code}")
+
+@socketio.on('request_question')
+def handle_request_question(data):
+    """Le client demande activement la question en cours (mécanisme de secours)."""
+    sid = request.sid
+    code = data.get('room_code', '').strip().upper()
+    
+    if code not in rooms:
+        return
+    
+    room = rooms[code]
+    print(f"[REQUEST_QUESTION] Player {sid} requesting question for room {code}, game_started={room['game_started']}, has_question={room['current_question'] is not None}")
+    
+    if room['game_started'] and room['current_question']:
+        # La question existe déjà, on l'envoie au joueur
+        socketio.emit('new_question', {
+            'question': room['current_question']['display'],
+            'question_number': room['question_number'],
+            'scores': get_room_players(code),
+            'is_solo': room.get('is_solo', False)
+        }, to=sid)
+    elif room['game_started'] and not room['current_question']:
+        # La partie est lancée mais aucune question n'a été générée.
+        # On génère la première question maintenant.
+        print(f"[REQUEST_QUESTION] No question yet, generating first question for room {code}")
+        send_new_question(code)
 
 
 @socketio.on('request_scores')
