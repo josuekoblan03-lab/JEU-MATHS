@@ -45,6 +45,15 @@ rooms = {}
 
 
 # ─────────────────────────────────────────────
+# Helper Robuste
+# ─────────────────────────────────────────────
+def emit_to_room(event, data, room_code):
+    """Envoie directement aux SIDs de la salle pour éviter les pertes de requêtes gevent en arrière-plan."""
+    if room_code in rooms:
+        for sid in list(rooms[room_code]['players'].keys()):
+            socketio.emit(event, data, to=sid)
+
+# ─────────────────────────────────────────────
 # Utilitaires
 # ─────────────────────────────────────────────
 def generate_room_code(length=6):
@@ -499,12 +508,12 @@ def send_new_question(room_code):
         safe_display = question['display'].replace('\u2212', '-').replace('\u00d7', '*')
         print(f"[QUESTION #{room['question_number']}] {safe_display} = {question['answer']} (Room: {room_code})")
 
-        socketio.emit('new_question', {
+        emit_to_room('new_question', {
             'question': question['display'],
             'question_number': room['question_number'],
             'scores': get_room_players(room_code),
             'is_solo': room.get('is_solo', False)
-        }, room=room_code)
+        }, room_code)
 
         # Chronomètre : 10s solo, 30s multijoueur
         timer_duration = 10.0 if room.get('is_solo') else 30.0
@@ -523,10 +532,10 @@ def send_new_question(room_code):
                 # Temps écoulé, personne n'a répondu
                 r['answered'] = True
                 print(f"[TIMEOUT] Question #{q_num} timed out in room {room_code}")
-                socketio.emit('time_up', {
+                emit_to_room('time_up', {
                     'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
                     'answer': r['current_question']['answer']
-                }, room=room_code)
+                }, room_code)
 
                 socketio.sleep(2.5)
 
@@ -537,13 +546,13 @@ def send_new_question(room_code):
                     winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
                     if not r.get('is_solo') and rankings:
                         winner_name = rankings[0]['name']
-                    socketio.emit('game_over', {
+                    emit_to_room('game_over', {
                         'winner': winner_name,
                         'rankings': rankings,
                         'room_code': room_code,
                         'is_solo': r.get('is_solo', False),
                         'max_questions': r['max_questions']
-                    }, room=room_code)
+                    }, room_code)
                 else:
                     # Question suivante
                     send_new_question(room_code)
@@ -605,13 +614,13 @@ def handle_submit_answer(data):
         print(f"[CORRECT] {player_name} answered {correct_answer} (Score: {new_score}) - Room {code}")
 
         # Notifier tout le monde
-        socketio.emit('correct_answer', {
+        emit_to_room('correct_answer', {
             'player_id': sid,
             'player_name': player_name,
             'answer': correct_answer,
             'question': room['current_question']['display'],
             'scores': get_room_players(code)
-        }, room=code)
+        }, code)
 
         # Vérifier si on a fini
         is_over = False
@@ -629,13 +638,13 @@ def handle_submit_answer(data):
                 if not room.get('is_solo') and rankings:
                     winner_name = rankings[0]['name']
 
-                socketio.emit('game_over', {
+                emit_to_room('game_over', {
                     'winner': winner_name,
                     'rankings': rankings,
                     'room_code': code,
                     'is_solo': room.get('is_solo', False),
                     'max_questions': room['max_questions']
-                }, room=code)
+                }, code)
                 
             socketio.start_background_task(delayed_game_over)
         else:
