@@ -174,6 +174,16 @@ socket.on('new_question', (data) => {
   
   timerBar.classList.add('running');
 
+  // Start client-driven timeout to trigger time_up if unanswered
+  if (window.questionTimeout) clearTimeout(window.questionTimeout);
+  const durationMs = data.is_solo ? 10000 : 30000;
+  window.questionTimeout = setTimeout(() => {
+    // Only emit if the card is NOT flipped (meaning we haven't received a response yet)
+    if (!document.getElementById('card-inner').classList.contains('flipped')) {
+      socket.emit('timer_expired', { room_code: ROOM_CODE });
+    }
+  }, durationMs + 1000); // 1s buffer to allow any in-flight answers to arrive
+
   // Update question text with GSAP animation
   const qText = document.getElementById('question-text');
   const qLabel = document.getElementById('question-label');

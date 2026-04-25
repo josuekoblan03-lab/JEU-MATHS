@@ -518,36 +518,6 @@ def send_new_question(room_code):
             'is_solo': room.get('is_solo', False)
         }, room_code)
 
-        # Chronomètre : 10s solo, 30s multijoueur
-        timer_duration = 10.0 if room.get('is_solo') else 30.0
-        q_num = room['question_number']
-
-        def timeout_task():
-            """Attend timer_duration secondes puis vérifie si la question est encore sans réponse."""
-            try:
-                socketio.sleep(timer_duration)
-                if room_code not in rooms:
-                    return
-                r = rooms[room_code]
-                if r['question_number'] != q_num or r['answered']:
-                    return  # Question déjà répondue ou changée, rien à faire
-
-                # Temps écoulé, personne n'a répondu
-                r['answered'] = True
-                print(f"[TIMEOUT] Question #{q_num} timed out in room {room_code}")
-                is_over = (r['question_number'] >= r['max_questions'])
-                if is_over:
-                    r['game_started'] = False
-
-                emit_to_room('time_up', {
-                    'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
-                    'answer': r['current_question']['answer'],
-                    'is_over': is_over
-                }, room_code)
-            except Exception as e:
-                print(f"ERROR in timeout_task: {e}")
-
-        socketio.start_background_task(timeout_task)
 
     except Exception as e:
         print(f"ERROR in send_new_question: {e}")
@@ -573,6 +543,35 @@ def handle_request_next_question(data):
             return
 
         send_new_question(code)
+
+@socketio.on('timer_expired')
+def handle_timer_expired(data):
+    sid = request.sid
+    code = data.get('room_code', '').strip().upper()
+    if code not in rooms:
+        return
+    room = rooms[code]
+    
+    # Only allow host/solo to trigger timeout to avoid race conditions
+    if room.get('is_solo') or room.get('host') == sid:
+        if not room['game_started'] or room['answered']:
+            return
+        
+        # Temps écoulé, personne n'a répondu
+        room['answered'] = True
+        q_num = room['question_number']
+        print(f"[TIMEOUT] Question #{q_num} timed out by client in room {code}")
+        
+        is_over = (room['question_number'] >= room['max_questions'])
+        if is_over:
+            room['game_started'] = False
+
+        timer_duration = 10.0 if room.get('is_solo') else 30.0
+        emit_to_room('time_up', {
+            'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
+            'answer': room['current_question']['answer'],
+            'is_over': is_over
+        }, code)
 
 @socketio.on('request_game_over')
 def handle_request_game_over(data):
