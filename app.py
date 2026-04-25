@@ -360,9 +360,9 @@ def handle_create_solo_game(data):
     })
 
     def delayed_first_question():
-        time.sleep(1.5)
+        socketio.sleep(4.0)
         send_new_question(code)
-    threading.Thread(target=delayed_first_question, daemon=True).start()
+    socketio.start_background_task(delayed_first_question)
 
 
 @socketio.on('join_room')
