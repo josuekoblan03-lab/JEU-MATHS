@@ -140,18 +140,21 @@ socket.on('new_question', (data) => {
   // Reset card flip
   document.getElementById('card-inner').classList.remove('flipped');
 
-  // Solo Timer
+  // Timer
   const timerContainer = document.getElementById('solo-timer');
   const timerBar = document.getElementById('timer-bar');
+  timerContainer.classList.remove('hidden');
+  timerBar.style.transform = ''; // reset inline style
+  timerBar.classList.remove('running');
+  void timerBar.offsetWidth; // trigger reflow to restart animation
+  
   if (data.is_solo) {
-    timerContainer.classList.remove('hidden');
-    timerBar.style.transform = ''; // reset inline style
-    timerBar.classList.remove('running');
-    void timerBar.offsetWidth; // trigger reflow to restart animation
-    timerBar.classList.add('running');
+    timerBar.style.animationDuration = '10s';
   } else {
-    timerContainer.classList.add('hidden');
+    timerBar.style.animationDuration = '30s';
   }
+  
+  timerBar.classList.add('running');
 
   // Update question text with GSAP animation
   const qText = document.getElementById('question-text');

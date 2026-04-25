@@ -477,50 +477,50 @@ def handle_start_game(data):
 
 def send_new_question(room_code):
     """Génère et envoie une nouvelle question à tous les joueurs de la salle."""
-    if room_code not in rooms:
-        return
+    try:
+        if room_code not in rooms:
+            return
 
-    room = rooms[room_code]
-    room['answered'] = False
-    room['answered_by'] = None
-    room['question_number'] += 1
-    difficulty = room.get('difficulty', 'normal')
+        room = rooms[room_code]
+        if not room['game_started']:
+            return
 
-    question = generate_question(room['used_questions'], difficulty)
-    room['current_question'] = question
+        room['answered'] = False
+        room['answered_by'] = None
+        room['question_number'] += 1
+        difficulty = room.get('difficulty', 'normal')
 
-    safe_display = question['display'].replace('−', '-').replace('×', '*')
-    print(f"[QUESTION #{room['question_number']}] {safe_display} = {question['answer']} (Room: {room_code})")
+        question = generate_question(room['used_questions'], difficulty)
+        room['current_question'] = question
 
-    socketio.emit('new_question', {
-        'question': question['display'],
-        'question_number': room['question_number'],
-        'scores': get_room_players(room_code),
-        'is_solo': room.get('is_solo', False)
-    }, room=room_code)
+        safe_display = question['display'].replace('−', '-').replace('×', '*')
+        print(f"[QUESTION #{room['question_number']}] {safe_display} = {question['answer']} (Room: {room_code})")
 
-    # Démarrer le chronomètre de 10s UNIQUEMENT pour le mode solo
-    if room.get('is_solo'):
+        socketio.emit('new_question', {
+            'question': question['display'],
+            'question_number': room['question_number'],
+            'scores': get_room_players(room_code),
+            'is_solo': room.get('is_solo', False)
+        }, room=room_code)
+
+        # Démarrer le chronomètre
+        timer_duration = 10.0 if room.get('is_solo') else 30.0
         q_num = room['question_number']
-        def timeout_check():
+        
+        def timer_task():
+            socketio.sleep(timer_duration)
             if room_code in rooms:
                 r = rooms[room_code]
                 if r['question_number'] == q_num and not r['answered']:
                     # Temps écoulé !
                     r['answered'] = True
                     socketio.emit('time_up', {
-                        'message': '⏳ Temps écoulé (10s) !',
+                        'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
                         'answer': r['current_question']['answer']
                     }, room=room_code)
                     
                     if r['question_number'] >= r['max_questions']:
                         r['game_started'] = False
-                        def delayed_game_over():
-                            socketio.sleep(2.5)
-                            rankings = get_rankings(room_code)
-                            winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
-                            if not r.get('is_solo') and rankings:
-                                winner_name = rankings[0]['name']
 
                             socketio.emit('game_over', {
                                 'winner': winner_name,
