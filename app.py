@@ -518,6 +518,53 @@ def send_new_question(room_code):
             'is_solo': room.get('is_solo', False)
         }, room_code)
 
+        # Chronomètre serveur en arrière-plan
+        timer_duration = 10.0 if room.get('is_solo') else 30.0
+        q_num = room['question_number']
+
+        def timeout_task():
+            try:
+                socketio.sleep(timer_duration)
+                if room_code not in rooms:
+                    return
+                r = rooms[room_code]
+                if r['question_number'] != q_num or r['answered']:
+                    return  # Déjà répondu
+
+                r['answered'] = True
+                print(f"[TIMEOUT] Question #{q_num} timed out in room {room_code}")
+                is_over = (r['question_number'] >= r['max_questions'])
+                if is_over:
+                    r['game_started'] = False
+
+                emit_to_room('time_up', {
+                    'message': f'⏳ Temps écoulé ({int(timer_duration)}s) !',
+                    'answer': r['current_question']['answer'],
+                    'is_over': is_over
+                }, room_code)
+                
+                # Enchaînement serveur
+                socketio.sleep(2.5)
+                if is_over:
+                    rankings = get_rankings(room_code)
+                    winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
+                    if not r.get('is_solo') and rankings:
+                        winner_name = rankings[0]['name']
+                    emit_to_room('game_over', {
+                        'winner': winner_name,
+                        'rankings': rankings,
+                        'room_code': room_code,
+                        'is_solo': r.get('is_solo', False),
+                        'max_questions': r['max_questions']
+                    }, room_code)
+                else:
+                    send_new_question(room_code)
+
+            except Exception as e:
+                print(f"ERROR in timeout_task: {e}")
+
+        socketio.start_background_task(timeout_task)
+
 
     except Exception as e:
         print(f"ERROR in send_new_question: {e}")
@@ -656,6 +703,21 @@ def handle_submit_answer(data):
                 'scores': get_room_players(code),
                 'is_over': True
             }, code)
+            
+            # Server-side progression (robust greenlet sleep)
+            socketio.sleep(2.0)
+            rankings = get_rankings(code)
+            winner_name = player_name
+            if not room.get('is_solo') and rankings:
+                winner_name = rankings[0]['name']
+
+            emit_to_room('game_over', {
+                'winner': winner_name,
+                'rankings': rankings,
+                'room_code': code,
+                'is_solo': room.get('is_solo', False),
+                'max_questions': room['max_questions']
+            }, code)
         else:
             # Notifier tout le monde
             emit_to_room('correct_answer', {
@@ -666,6 +728,10 @@ def handle_submit_answer(data):
                 'scores': get_room_players(code),
                 'is_over': False
             }, code)
+            
+            # Server-side progression (robust greenlet sleep)
+            socketio.sleep(2.5)
+            send_new_question(code)
 
     else:
         # ─── MAUVAISE RÉPONSE ───
