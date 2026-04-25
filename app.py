@@ -51,7 +51,10 @@ def emit_to_room(event, data, room_code):
     """Envoie directement aux SIDs de la salle pour éviter les pertes de requêtes gevent en arrière-plan."""
     if room_code in rooms:
         for sid in list(rooms[room_code]['players'].keys()):
-            socketio.emit(event, data, to=sid)
+            try:
+                socketio.emit(event, data, to=sid, namespace='/')
+            except Exception as e:
+                print(f"[EMIT ERROR] Failed to emit {event} to {sid}: {e}")
 
 # ─────────────────────────────────────────────
 # Utilitaires
