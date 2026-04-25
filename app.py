@@ -436,10 +436,11 @@ def handle_join_room(data):
 
     join_room(code)
 
-    emit_to_room('room_joined', {
+    # Rediriger seulement le joueur qui vient de rejoindre
+    emit('room_joined', {
         'room_code': code,
         'player_name': player_name
-    }, code)
+    })
 
     # Notifier tous les joueurs
     emit_to_room('player_joined', {
@@ -477,7 +478,7 @@ def handle_start_game(data):
         emit('error', {'message': "Seul l'hôte peut lancer la partie."})
         return
 
-    if len(room['players']) < 1:
+    if len(room['players']) < 2:
         emit('error', {'message': 'Il faut au moins 2 joueurs pour commencer.'})
         return
 
