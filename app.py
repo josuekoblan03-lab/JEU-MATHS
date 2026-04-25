@@ -79,15 +79,15 @@ def generate_question(used_questions, difficulty='normal'):
     for _ in range(100): # Limite de tentatives pour éviter une boucle infinie
         # Définition des plages de nombres et limites de résultat
         if difficulty == 'facile':
-            range_add = (1, 10)
+            range_add = (0, 20)
             range_mul = (2, 5)
-            max_answer = 20
+            max_answer = 30
         elif difficulty == 'difficile':
             range_add = (10, 100)
             range_mul = (3, 20)
             max_answer = 10000
         else: # normal
-            range_add = (1, 20)
+            range_add = (0, 20)
             range_mul = (2, 8)
             max_answer = 60
 
