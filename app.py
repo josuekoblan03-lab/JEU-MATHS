@@ -521,15 +521,19 @@ def send_new_question(room_code):
                     
                     if r['question_number'] >= r['max_questions']:
                         r['game_started'] = False
+                        socketio.sleep(2.5)
+                        rankings = get_rankings(room_code)
+                        winner_name = list(r['players'].values())[0]['name'] if r['players'] else "Joueur"
+                        if not r.get('is_solo') and rankings:
+                            winner_name = rankings[0]['name']
 
-                            socketio.emit('game_over', {
-                                'winner': winner_name,
-                                'rankings': rankings,
-                                'room_code': room_code,
-                                'is_solo': r.get('is_solo', False),
-                                'max_questions': r['max_questions']
-                            }, room=room_code)
-                        socketio.start_background_task(delayed_game_over)
+                        socketio.emit('game_over', {
+                            'winner': winner_name,
+                            'rankings': rankings,
+                            'room_code': room_code,
+                            'is_solo': r.get('is_solo', False),
+                            'max_questions': r['max_questions']
+                        }, room=room_code)
                     else:
                         def delayed_next():
                             socketio.sleep(2.5)
@@ -537,11 +541,12 @@ def send_new_question(room_code):
                         socketio.start_background_task(delayed_next)
 
         def timer_task():
-            socketio.sleep(10.0)
+            socketio.sleep(timer_duration)
             timeout_check()
         socketio.start_background_task(timer_task)
-
-
+    except Exception as e:
+        print(f"ERROR in send_new_question: {e}")
+        socketio.emit('error', {'message': f'Server error: {e}'}, room=room_code)
 @socketio.on('submit_answer')
 def handle_submit_answer(data):
     """
