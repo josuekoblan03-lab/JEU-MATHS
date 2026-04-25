@@ -770,10 +770,18 @@ def handle_request_question(data):
             'is_solo': room.get('is_solo', False)
         }, to=sid)
     elif room['game_started'] and not room['current_question']:
-        # La partie est lancée mais aucune question n'a été générée.
-        # On génère la première question maintenant.
         print(f"[REQUEST_QUESTION] No question yet, generating first question for room {code}")
         send_new_question(code)
+
+@socketio.on('check_game_status')
+def handle_check_game_status(data):
+    """Vérifier si la partie a commencé (mécanisme de secours pour le lobby)."""
+    code = data.get('room_code', '').strip().upper()
+    if code in rooms:
+        emit('game_status', {
+            'game_started': rooms[code]['game_started'],
+            'room_code': code
+        })
 
 
 @socketio.on('request_scores')

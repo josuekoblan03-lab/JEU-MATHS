@@ -89,6 +89,18 @@ socket.on('game_started', (data) => {
   window.location.href = '/game/' + data.room_code;
 });
 
+// ── Mécanisme de secours (Polling) ──
+// Vérifier périodiquement si la partie a commencé pour éviter de rester bloqué au lobby
+setInterval(() => {
+  socket.emit('check_game_status', { room_code: ROOM_CODE });
+}, 2000);
+
+socket.on('game_status', (data) => {
+  if (data.game_started) {
+    window.location.href = '/game/' + data.room_code;
+  }
+});
+
 socket.on('error', (data) => {
   const el = document.getElementById('lobby-error');
   el.textContent = data.message;
