@@ -209,6 +209,14 @@ socket.on('correct_answer', (data) => {
 
   // Update scores with animation
   renderScores(data.scores, data.player_id);
+
+  // Failsafe: if we don't get a new question in 5 seconds, request it!
+  setTimeout(() => {
+    if (document.getElementById('card-inner').classList.contains('flipped')) {
+      console.log('[FAILSAFE] Stuck on correct_answer, requesting question...');
+      socket.emit('request_question', { room_code: ROOM_CODE });
+    }
+  }, 5000);
 });
 
 socket.on('time_up', (data) => {
@@ -225,6 +233,14 @@ socket.on('time_up', (data) => {
   
   document.getElementById('answer-input').classList.add('wrong');
   showFeedback(data.message, 'wrong');
+
+  // Failsafe: if we don't get a new question in 5 seconds, request it!
+  setTimeout(() => {
+    if (document.getElementById('card-inner').classList.contains('flipped')) {
+      console.log('[FAILSAFE] Stuck on time_up, requesting question...');
+      socket.emit('request_question', { room_code: ROOM_CODE });
+    }
+  }, 5000);
 });
 
 socket.on('wrong_answer', (data) => {
