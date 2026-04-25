@@ -564,17 +564,17 @@ def handle_submit_answer(data):
 
     # ─── VERROU : déjà répondu ? ───
     if room['answered']:
-        emit('too_late', {
+        socketio.emit('too_late', {
             'message': 'Trop tard ! Un autre joueur a déjà répondu.',
             'answered_by': room['players'].get(room['answered_by'], {}).get('name', '?')
-        })
+        }, to=sid)
         return
 
     # Vérifier la réponse
     try:
         player_answer = int(answer_str)
     except (ValueError, TypeError):
-        emit('wrong_answer', {'message': 'Réponse invalide. Entrez un nombre.'})
+        socketio.emit('wrong_answer', {'message': 'Réponse invalide. Entrez un nombre.'}, to=sid)
         return
 
     correct_answer = room['current_question']['answer']
@@ -590,7 +590,7 @@ def handle_submit_answer(data):
         print(f"[CORRECT] {player_name} answered {correct_answer} (Score: {new_score}) - Room {code}")
 
         # Notifier tout le monde
-        emit('correct_answer', {
+        socketio.emit('correct_answer', {
             'player_id': sid,
             'player_name': player_name,
             'answer': correct_answer,
@@ -632,9 +632,9 @@ def handle_submit_answer(data):
 
     else:
         # ─── MAUVAISE RÉPONSE ───
-        emit('wrong_answer', {
+        socketio.emit('wrong_answer', {
             'message': f'Mauvaise réponse ! {player_answer} n\'est pas correct.'
-        })
+        }, to=sid)
         print(f"[WRONG] {player_name} answered {player_answer} (expected {correct_answer}) - Room {code}")
 
 
