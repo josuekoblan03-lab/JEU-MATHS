@@ -42,8 +42,25 @@
 
         <!-- Answer Input -->
         <div style="width:100%;max-width:400px;text-align:center;">
-          <input type="number" class="input-3d" id="answer-input" placeholder="?" style="font-size:2rem;letter-spacing:4px;" disabled>
-          <button class="btn-3d primary mt-2" id="btn-submit" onclick="submitAnswer()" disabled>
+          <input type="number" class="input-3d" id="answer-input" placeholder="?" style="font-size:2rem;letter-spacing:4px;" disabled inputmode="none">
+          
+          <!-- Virtual Keypad (visible on mobile/small screens) -->
+          <div class="numeric-keypad mt-3" id="numeric-keypad">
+            <button class="key-3d" onclick="keypadType('1')">1</button>
+            <button class="key-3d" onclick="keypadType('2')">2</button>
+            <button class="key-3d" onclick="keypadType('3')">3</button>
+            <button class="key-3d" onclick="keypadType('4')">4</button>
+            <button class="key-3d" onclick="keypadType('5')">5</button>
+            <button class="key-3d" onclick="keypadType('6')">6</button>
+            <button class="key-3d" onclick="keypadType('7')">7</button>
+            <button class="key-3d" onclick="keypadType('8')">8</button>
+            <button class="key-3d" onclick="keypadType('9')">9</button>
+            <button class="key-3d danger" onclick="keypadClear()">⌫</button>
+            <button class="key-3d" onclick="keypadType('0')">0</button>
+            <button class="key-3d success" id="btn-keypad-submit" onclick="submitAnswer()">✓</button>
+          </div>
+
+          <button class="btn-3d primary mt-3" id="btn-submit" onclick="submitAnswer()" disabled>
             ✓ Soumettre
           </button>
         </div>

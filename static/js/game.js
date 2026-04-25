@@ -87,24 +87,38 @@ function animateScoreDigits(score, animate) {
   ).join('');
 }
 
-// ── Submit answer ──
+// ── Submit Answer ──
 function submitAnswer() {
   if (isLocked) return;
   const input = document.getElementById('answer-input');
   const answer = input.value.trim();
+
   if (!answer) return;
 
-  // Ripple on button
-  const btn = document.getElementById('btn-submit');
-  const ripple = document.createElement('span');
-  ripple.classList.add('ripple');
-  ripple.style.width = ripple.style.height = '100px';
-  ripple.style.left = '50%'; ripple.style.top = '50%';
-  ripple.style.marginLeft = '-50px'; ripple.style.marginTop = '-50px';
-  btn.appendChild(ripple);
-  setTimeout(() => ripple.remove(), 600);
+  // Le lockInput() est géré par l'émission ou par l'UI locale
+  lockInput();
 
-  socket.emit('submit_answer', { room_code: ROOM_CODE, answer: answer });
+  socket.emit('submit_answer', { 
+    room_code: ROOM_CODE, 
+    answer: answer 
+  });
+}
+
+// ── Virtual Keypad Logic ──
+function keypadType(num) {
+  if (isLocked) return;
+  const input = document.getElementById('answer-input');
+  if (input.value.length < 10) {
+    input.value += num;
+    if (typeof playSFX === 'function') playSFX('click');
+  }
+}
+
+function keypadClear() {
+  if (isLocked) return;
+  const input = document.getElementById('answer-input');
+  input.value = input.value.slice(0, -1);
+  if (typeof playSFX === 'function') playSFX('click');
 }
 
 // ── Enter key to submit ──
@@ -131,9 +145,16 @@ function hideFeedback() {
 // ── Lock/Unlock input ──
 function lockInput() {
   isLocked = true;
-  document.getElementById('answer-input').classList.add('locked');
-  document.getElementById('answer-input').disabled = true;
+  const input = document.getElementById('answer-input');
+  input.classList.add('locked');
+  input.disabled = true;
   document.getElementById('btn-submit').disabled = true;
+  
+  // Désactiver le clavier virtuel
+  document.querySelectorAll('.key-3d').forEach(k => {
+    k.style.opacity = '0.5';
+    k.style.pointerEvents = 'none';
+  });
 }
 
 function unlockInput() {
@@ -142,8 +163,18 @@ function unlockInput() {
   input.classList.remove('locked', 'correct', 'wrong');
   input.disabled = false;
   input.value = '';
-  input.focus();
+  
+  // On ne focus pas automatiquement sur mobile pour éviter le clavier système
+  if (window.innerWidth > 1024) input.focus();
+  
   document.getElementById('btn-submit').disabled = false;
+  
+  // Réactiver le clavier virtuel
+  document.querySelectorAll('.key-3d').forEach(k => {
+    k.style.opacity = '1';
+    k.style.pointerEvents = 'auto';
+  });
+
   hideFeedback();
 }
 
